@@ -139,7 +139,7 @@ async function sendEmail(env, to, items) {
     const htmlList = items.map(i => `<li style="margin-bottom:8px;">${i}</li>`).join('');
 
     const body = {
-        from: 'BikerManager <notifiche@YOUR_DOMAIN.com>',
+        from: 'BikerManager <onboarding@resend.dev>',
         to: [to],
         subject: '🏍️ Biker Manager — Scadenze da controllare',
         html: `
