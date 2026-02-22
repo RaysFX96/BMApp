@@ -1,0 +1,21 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
+    "java.import.gradle.home": null,
+    "java.compile.nullAnalysis.mode": "disabled",
+    "java.project.sourcePaths": [],
+    "java.project.referencedLibraries": [],
+    "java.import.gradle.jvmArguments": "-Xmx2048m",
+    "java.configuration.runtimes": [],
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/node_modules": true
+    },
+    "java.import.exclusions": [],
+    "java.project.resourceFilters": [
+        "node_modules",
+        ".git"
+    ]
+}

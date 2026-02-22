@@ -1,0 +1,6 @@
+{
+  "appId": "it.bikermanager.app",
+  "appName": "Biker Manager",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

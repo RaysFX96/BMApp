@@ -1,0 +1,52 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.2'
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+subprojects {
+    // Aggressively force Java 17 compatibility
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_17
+                    targetCompatibility = JavaVersion.VERSION_17
+                }
+                
+                // For modern Gradle versions that support toolchains
+                if (project.plugins.hasPlugin('java')) {
+                    java {
+                        toolchain {
+                            languageVersion = JavaLanguageVersion.of(17)
+                        }
+                    }
+                }
+            }
+        }
+        
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:-options"
+            sourceCompatibility = '17'
+            targetCompatibility = '17'
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
