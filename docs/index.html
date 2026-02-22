@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App Moto - Il tuo assistente centauro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="leaflet.css">
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts are kept as they are generally cached or have fallbacks, but scripts must be local -->
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BikerManager">
+    <link rel="apple-touch-icon" href="assets/icon/favicon.png">
+    <meta name="theme-color" content="#ff3b3b">
+</head>
+
+<body class="android-theme">
+    <div class="app-container">
+        <!-- Global Background for Dashboard -->
+        <div id="global-dashboard-bg" class="dashboard-bg"></div>
+        <!-- Global Background for Routes -->
+        <div id="global-route-bg" class="route-bg"></div>
+        <!-- Global Background for Documents -->
+        <div id="global-documents-bg" class="documents-bg"></div>
+        <!-- Global Background for Costs -->
+        <div id="global-costs-bg" class="costs-bg"></div>
+
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="back-btn" class="icon-btn hidden">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <button id="menu-btn" class="icon-btn">
+                    <i data-lucide="menu"></i>
+                </button>
+            </div>
+            <h1 id="screen-title">Dashboard</h1>
+            <div class="header-actions">
+                <button id="header-share-btn" class="icon-btn hidden">
+                    <i data-lucide="share-2"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Sidebar / Drawer -->
+        <div id="sidebar-overlay" class="overlay"></div>
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="moto-logo">
+                    <i data-lucide="bike"></i>
+                </div>
+                <div class="user-info">
+                    <h3 id="sidebar-user-name" class="sidebar-user-name">Nuovo Pilota</h3>
+                </div>
+            </div>
+            <ul class="nav-list">
+                <li class="nav-item active" data-screen="dashboard">
+                    <span class="nav-icon">🏠</span>
+                    <span>Garage</span>
+                </li>
+                <li class="nav-item" data-screen="calendar">
+                    <span class="nav-icon">📅</span>
+                    <span>Calendario</span>
+                </li>
+                <li class="nav-item" data-screen="costs">
+                    <span class="nav-icon">💰</span>
+                    <span>Costi</span>
+                </li>
+                <li class="nav-item" id="nav-notifications" data-screen="notifications">
+                    <span class="nav-icon">🔔</span>
+                    <span>Notifiche</span>
+                    <span id="notif-badge" class="notif-badge hidden">0</span>
+                </li>
+                <li class="nav-item" id="nav-route" data-screen="route">
+                    <span class="nav-icon">🛣️</span>
+                    <span>Percorso</span>
+                </li>
+                <li class="nav-item" data-screen="documents">
+                    <span class="nav-icon">📄</span>
+                    <span>Documenti</span>
+                </li>
+                <li class="nav-item" data-screen="gearing">
+                    <span class="nav-icon">⛓️</span>
+                    <span>Calcolo Rapporti</span>
+                </li>
+                <li class="nav-divider"></li>
+                <li class="nav-item" data-screen="settings" style="margin-top: auto;">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Impostazioni</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Dynamic Screens will be loaded here -->
+            <div id="screen-dashboard" class="screen active">
+                <!-- Initial view if no profile -->
+                <div id="empty-state" class="empty-state">
+                    <div class="welcome-card">
+                        <i data-lucide="plus-circle" class="big-icon"></i>
+                        <h2>Garage Vuoto</h2>
+                        <p>Inizia configurando il tuo profilo e aggiungendo la tua prima moto.</p>
+                        <button id="start-onboarding" class="btn btn-primary">Configura Profilo</button>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content (Garage View) -->
+                <div id="dash-content" class="dash-content hidden">
+                    <div class="garage-header"
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">Le mie Moto</h2>
+                        <button id="add-bike-garage" class="btn btn-text">
+                            <i data-lucide="plus-circle"></i>
+                            Aggiungi
+                        </button>
+                    </div>
+
+                    <!-- Weather Widget -->
+                    <div id="weather-widget" class="weather-card"
+                        style="background: #222; padding: 15px; border-radius: 16px; margin-bottom: 24px; border: 1px solid #333;">
+                        <div style="text-align:center; opacity:0.5; font-size:12px;">Caricamento meteo...</div>
+                    </div>
+
+                    <div id="garage-list" class="garage-list">
+                        <!-- Moto cards dynamically injected -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onboarding Overlay -->
+            <div id="onboarding-overlay" class="onboarding-overlay hidden">
+                <div class="onboarding-card">
+                    <div class="onboarding-steps">
+                        <span class="step-dot active"></span>
+                        <span class="step-dot"></span>
+                        <span class="step-dot"></span>
+                    </div>
+
+                    <!-- Step 1: User Profile -->
+                    <div class="onboarding-form" id="step-1">
+                        <h2>Il tuo Profilo</h2>
+                        <div class="profile-upload-cont" style="text-align: center; margin-bottom: 24px;">
+                            <div id="profile-img-preview" class="img-preview-circle"
+                                style="width: 100px; height: 100px; background: #2a2a2a; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--primary);">
+                                <i data-lucide="user" style="width: 40px; height: 40px; color: #888;"></i>
+                            </div>
+                            <label for="user-photo" class="btn-text" style="font-size: 14px; cursor: pointer;">Carica la
+                                tua foto</label>
+                            <input type="file" id="user-photo" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="input-group">
+                            <label>Il tuo nome</label>
+                            <input type="text" id="user-name" placeholder="Esempio: Marco">
+                        </div>
+                        <div style="text-align: center; margin-top: 24px;">
+                            <button class="btn btn-primary" data-next="2"
+                                onclick="window.nextStepGlobal(2)">Avanti</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: First Bike Info -->
+                    <div class="onboarding-form hidden" id="step-2">
+                        <h2>La tua Moto</h2>
+                        <div class="auto-upload-cont" style="text-align: center; margin-bottom: 24px;">
+                            <div id="moto-img-preview" class="img-preview-rect"
+                                style="width: 100%; height: 150px; background: #2a2a2a; border-radius: 16px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px dashed #444;">
+                                <i data-lucide="bike" style="width: 50px; height: 50px; color: #888;"></i>
+                            </div>
+                            <label for="moto-photo" class="btn btn-text"
+                                style="font-size: 14px; cursor: pointer;">Aggiungi foto moto</label>
+                            <input type="file" id="moto-photo" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="input-group">
+                            <label>Modello Moto</label>
+                            <input type="text" id="moto-model" placeholder="Esempio: Ducati Monster 821">
+                        </div>
+                        <div class="input-group">
+                            <label>Km Attuali della Moto</label>
+                            <input type="number" id="current-km-total" placeholder="Esempio: 50000">
+                        </div>
+                        <div style="display: flex; gap: 16px; margin-top: 24px;">
+                            <button type="button" class="btn btn-secondary" data-next="3"
+                                style="flex: 1;">Dettagli</button>
+                            <button type="button" id="save-quick-bike" class="btn btn-primary" style="flex: 1.5;">Salva
+                                Ora</button>
+                        </div>
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button type="button" id="cancel-onboarding" class="btn btn-secondary"
+                                style="color: #fff; width: 100%; max-width: 100%;">Annulla</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Detailed Maintenance -->
+                    <div class="onboarding-form hidden" id="step-3">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h2 style="margin:0">Stato del Mezzo</h2>
+                            <span id="profile-perc"
+                                style="font-weight: bold; color: var(--primary); font-size: 14px;">0%</span>
+                        </div>
+                        <div class="progress-container"
+                            style="height: 8px; background: #333; border-radius: 4px; margin-bottom: 24px; overflow: hidden;">
+                            <div id="profile-progress-bar"
+                                style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Cosa vuoi configurare?</label>
+                            <select id="maint-selector">
+                                <option value="" disabled selected>Scegli una categoria...</option>
+                                <option value="assicurazione">Assicurazione</option>
+                                <option value="bollo">Bollo</option>
+                                <option value="revisione">Revisione</option>
+                                <option value="tagliando">Tagliando (Olio/Filtri)</option>
+                                <option value="gomme">Pneumatici</option>
+                                <option value="freni">Pastiglie/Dischi Freni</option>
+                                <option value="refrigerante">Liquido Refrigerante</option>
+                                <option value="liquido_freni">Liquido Freni</option>
+                                <option value="trasmissione">Trasmissione (Catena/Corona)</option>
+                            </select>
+                        </div>
+
+                        <!-- Dynamic Input Container -->
+                        <div id="maint-inputs-cont" class="maint-config-card"
+                            style="background: #2a2a2a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; display:none;">
+                            <!-- Content injected via JS -->
+                        </div>
+
+                        <div id="maint-summary-list" style="margin-bottom: 24px; font-size: 13px; color: #666;">
+                            <!-- List of configured items will appear here -->
+                        </div>
+
+                        <div
+                            style="display: flex; flex-direction: column; gap: 16px; margin-top: 32px; align-items: center;">
+                            <button type="button" id="save-profile" class="btn btn-primary">Salva con
+                                Dettagli</button>
+                            <button type="button" id="skip-maint-save" class="btn btn-text">Salta e
+                                completa</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Screen -->
+            <div id="screen-calendar" class="screen hidden">
+                <div id="cal-bike-selector-cont" style="margin-bottom: 20px;">
+                    <!-- Dropdown per selezione moto iniettato via JS -->
+                </div>
+                <div id="calendar-view" class="calendar-view">
+                    <!-- Real calendar grid will be injected here -->
+                </div>
+                <div class="header-card" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0;">Registro Eventi</h2>
+                    <button id="export-logs-btn" class="btn btn-text"
+                        style="color: var(--primary); font-size: 11px; padding: 4px 8px; border: 1px solid rgba(255, 59, 48, 0.2); border-radius: 8px;">
+                        <i data-lucide="download" style="width: 14px; margin-right: 4px;"></i> ESPORTA
+                    </button>
+                </div>
+                <div id="logs-list" class="logs-list">
+                    <!-- Maintenance logs go here -->
+                </div>
+            </div>
+
+            <!-- Costs Screen -->
+            <div id="screen-costs" class="screen hidden">
+                <div id="costs-bike-selector-cont" style="margin-bottom: 20px;">
+                    <!-- Dropdown moto iniettato via JS -->
+                </div>
+                <div class="chart-container">
+                    <canvas id="costsChart"></canvas>
+                </div>
+                <div class="costs-summary">
+                    <div class="summary-card total">
+                        <span class="label">Totale Anno</span>
+                        <span class="value" id="year-total">€ 0.00</span>
+                    </div>
+                </div>
+                <div id="costs-list" class="costs-list">
+                    <!-- History of costs -->
+                </div>
+            </div>
+
+            <!-- Settings Screen -->
+            <div id="screen-settings" class="screen hidden">
+                <!-- Settings content injected via JS -->
+            </div>
+
+            <!-- Notifications Screen -->
+            <div id="screen-notifications" class="screen hidden">
+                <div class="header-card">
+                    <h2 style="margin-bottom: 8px;">Stato del Garage</h2>
+                    <p style="font-size: 14px; opacity: 0.7;">Controlla le criticità di tutti i tuoi mezzi in un unico
+                        posto.</p>
+                </div>
+                <div id="notifications-list" class="notifications-list" style="margin-top: 20px;">
+                    <!-- Alerts dynamically injected here -->
+                </div>
+            </div>
+
+            <!-- Route Screen -->
+            <div id="screen-route" class="screen hidden">
+                <div id="route-idle" class="route-idle">
+                    <div class="header-card">
+                        <h2>Percorsi</h2>
+                        <p>Registra e analizza le tue performance in sella.</p>
+                    </div>
+
+                    <div style="text-align: center; margin: 40px 0;">
+                        <button id="start-route-btn" class="btn btn-primary"
+                            style="padding: 18px 32px; border-radius: 50px; gap: 12px;">
+                            <div
+                                style="width:32px; height:32px; background:rgba(255,255,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                                <i data-lucide="play" style="width:16px; fill: white;"></i>
+                            </div>
+                            AVVIA SESSIONE
+                        </button>
+                    </div>
+
+                    <div id="past-routes-list">
+                        <h3
+                            style="margin-bottom: 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #666;">
+                            Cronologia</h3>
+                        <!-- Routes injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weather Detail Screen -->
+            <div id="screen-weather" class="screen hidden">
+                <div class="header-card">
+                    <h2 id="weather-detail-title">Previsioni Settimanali</h2>
+                    <p id="weather-detail-loc">Caricamento dettagli...</p>
+                </div>
+                <div id="weather-weekly-list" class="weather-weekly-list" style="margin-top: 20px;">
+                    <!-- Weekly forecast items dynamically injected here -->
+                </div>
+            </div>
+
+            <div id="route-active" class="route-active hidden">
+                <div class="cockpit-dashboard">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <div id="route-timer"
+                            style="font-size: 48px; font-weight: 800; color: var(--primary); letter-spacing: 2px;">
+                            00:00:00</div>
+                        <div
+                            style="font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 2px; margin-top: -4px;">
+                            Tempo Sessione</div>
+                    </div>
+
+                    <div class="cockpit-stats">
+                        <div class="cockpit-card">
+                            <span class="cockpit-unit">Velocità</span>
+                            <div class="cockpit-val"><span id="live-speed">0</span></div>
+                            <span class="cockpit-unit">km/h</span>
+                        </div>
+                        <div class="cockpit-card">
+                            <span class="cockpit-unit">Altitudine</span>
+                            <div class="cockpit-val"><span id="live-alt">0</span></div>
+                            <span class="cockpit-unit">metri</span>
+                        </div>
+                    </div>
+
+                    <div class="lean-widget">
+                        <div
+                            style="font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 16px;">
+                            Inclinazione Moto</div>
+                        <div class="lean-visual">
+                            <div class="lean-scale"><span>45°L</span><span>0°</span><span>45°R</span></div>
+                            <div id="lean-moto-container" class="lean-moto-container">
+                                <img src="assets/moto_rear.png" id="lean-moto-img" class="moto-rear-img"
+                                    alt="La mia Moto">
+                            </div>
+                        </div>
+                        <div class="lean-numbers">
+                            <div class="lean-num-box">
+                                <span class="lean-num-label">Max L</span>
+                                <span id="max-lean-left" class="lean-num-val">0°</span>
+                            </div>
+                            <div class="lean-num-box">
+                                <span class="lean-num-label">Live</span>
+                                <span id="live-lean" class="lean-num-val"
+                                    style="color:var(--primary); font-size: 24px;">0°</span>
+                            </div>
+                            <div class="lean-num-box">
+                                <span class="lean-num-label">Max R</span>
+                                <span id="max-lean-right" class="lean-num-val">0°</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonna Azioni (Destra in Landscape) -->
+                    <div class="cockpit-actions-column">
+                        <div class="cockpit-stats" style="margin-top: 20px;">
+                            <div class="cockpit-card">
+                                <span class="cockpit-unit">Forza G</span>
+                                <div class="cockpit-val" style="font-size: 24px;"><span id="accel-value">0.0</span>
+                                    <small style="font-size: 14px; opacity: 0.5;">G</small>
+                                </div>
+                            </div>
+
+                            <div class="cockpit-card">
+                                <span class="cockpit-unit">KM</span>
+                                <div class="cockpit-val" style="font-size: 24px;"><span id="live-dist">0.00</span>
+                                    <small style="font-size: 14px; opacity: 0.5;">km</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 40px; padding-bottom: 20px;">
+                            <button id="stop-route-btn" class="btn btn-danger"
+                                style="padding: 16px 28px; border-radius: 50px;">
+                                <i data-lucide="square" style="width: 18px; fill: white;"></i>
+                                FERMA E SALVA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route Detail Screen -->
+            <!-- Route Detail Screen (Share Card) -->
+            <div id="screen-route-detail" class="screen hidden"
+                style="padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: calc(100vh - 120px); overflow: hidden;">
+
+                <div id="capture-area" class="share-card"
+                    style="background: var(--bg-surface); width: 100%; max-width: 400px; border-radius: 24px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden;">
+
+                    <div class="share-header"
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-weight: 800; color: var(--primary); font-size: 14px; letter-spacing: 1px;">
+                            BIKER MANAGER</div>
+                        <div id="share-date" style="font-size: 12px; opacity: 0.6;">01/01/2026</div>
+                    </div>
+
+                    <div id="map-container" class="map-container"
+                        style="height: 180px; width: 100%; border-radius: 16px; z-index: 1;"></div>
+
+                    <div class="share-stats-grid"
+                        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div class="s-stat">
+                            <span
+                                style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">KM</span>
+                            <span id="detail-dist" style="font-size:18px; font-weight:700; color:#fff;">0.00</span>
+                        </div>
+                        <div class="s-stat">
+                            <span
+                                style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">Tempo</span>
+                            <span id="detail-duration" style="font-size:16px; font-weight:700; color:#fff;">00h
+                                00m</span>
+                        </div>
+                        <div class="s-stat">
+                            <span
+                                style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">Media</span>
+                            <span id="detail-avg-speed" style="font-size:18px; font-weight:700; color:#fff;">0</span>
+                            <span style="font-size:10px; opacity:0.6;">km/h</span>
+                        </div>
+                    </div>
+
+                    <div class="share-stats-grid"
+                        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div class="s-stat">
+                            <span style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">Vel.
+                                Max</span>
+                            <span id="detail-speed" style="font-size:18px; font-weight:700; color:#fff;">0</span>
+                            <span style="font-size:10px; opacity:0.6;">km/h</span>
+                        </div>
+                        <div class="s-stat">
+                            <span
+                                style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">Altitudine</span>
+                            <span id="detail-alt-start" style="font-size:18px; font-weight:700; color:#fff;">0</span>
+                            <span style="font-size:10px; opacity:0.6;">m</span>
+                        </div>
+                        <div class="s-stat">
+                            <span
+                                style="display:block; font-size:10px; opacity:0.6; text-transform:uppercase;">G-Max</span>
+                            <span id="detail-accel-val" style="font-size:18px; font-weight:700; color:#fff;">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="share-lean-row"
+                        style="display: flex; justify-content: space-around; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; align-items: center;">
+                        <div style="text-align: center;">
+                            <span style="display:block; font-size:9px; opacity:0.5;">PIEGA SX</span>
+                            <span id="detail-lean-l"
+                                style="font-size:18px; font-weight:700; color:var(--primary);">0</span>°
+                        </div>
+                        <i data-lucide="trending-down" style="opacity: 0.3;"></i>
+                        <div style="text-align: center;">
+                            <span style="display:block; font-size:9px; opacity:0.5;">PIEGA DX</span>
+                            <span id="detail-lean-r"
+                                style="font-size:18px; font-weight:700; color:var(--primary);">0</span>°
+                        </div>
+                    </div>
+                </div>
+
+                <div id="share-actions-cont"
+                    style="width: 100%; display: flex; justify-content: center; padding: 20px 0;">
+                    <button id="export-share-btn" class="btn btn-primary"
+                        style="padding: 12px 32px; border-radius: 30px; gap: 8px;">
+                        <i data-lucide="share-2" style="width: 18px;"></i> CONDIVIDI
+                    </button>
+                </div>
+
+                <button id="export-gpx-btn" class="btn btn-text hidden">GPX</button>
+            </div>
+
+            <!-- Documents Screen -->
+            <div id="screen-documents" class="screen hidden" style="padding: 20px;">
+                <div id="docs-bike-selector-cont" style="margin-bottom: 20px;">
+                    <!-- Dropdown moto iniettato via JS -->
+                </div>
+                <div class="header-card">
+                    <h2>Gestione Documenti</h2>
+                    <p style="font-size: 14px; opacity: 0.7;">Conserva in sicurezza le foto di patente, libretto e
+                        assicurazione.</p>
+                </div>
+
+                <div class="documents-grid"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 24px;">
+                    <!-- Patente -->
+                    <div class="doc-card"
+                        style="background:#222; border:1px solid #333; border-radius:16px; padding:15px; text-align:center;">
+                        <div id="doc-preview-patente" class="doc-preview"
+                            style="height:80px; background:#333; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <i data-lucide="credit-card" style="width:24px; color:#666;"></i>
+                        </div>
+                        <h4 style="font-size:13px; margin-bottom:8px;">Patente</h4>
+                        <label for="input-doc-patente" class="btn-text"
+                            style="font-size:11px; cursor:pointer; color:var(--primary);">Aggiungi</label>
+                        <input type="file" id="input-doc-patente" accept="image/*" style="display:none;">
+                    </div>
+
+                    <!-- Assicurazione -->
+                    <div class="doc-card"
+                        style="background:#222; border:1px solid #333; border-radius:16px; padding:15px; text-align:center;">
+                        <div id="doc-preview-assicurazione" class="doc-preview"
+                            style="height:80px; background:#333; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <i data-lucide="shield" style="width:24px; color:#666;"></i>
+                        </div>
+                        <h4 style="font-size:13px; margin-bottom:8px;">Assicurazione</h4>
+                        <label for="input-doc-assicurazione" class="btn-text"
+                            style="font-size:11px; cursor:pointer; color:var(--primary);">Aggiungi</label>
+                        <input type="file" id="input-doc-assicurazione" accept="image/*" style="display:none;">
+                    </div>
+
+                    <!-- Libretto -->
+                    <div class="doc-card"
+                        style="background:#222; border:1px solid #333; border-radius:16px; padding:15px; text-align:center;">
+                        <div id="doc-preview-libretto" class="doc-preview"
+                            style="height:80px; background:#333; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <i data-lucide="file-text" style="width:24px; color:#666;"></i>
+                        </div>
+                        <h4 style="font-size:13px; margin-bottom:8px;">Libretto</h4>
+                        <label for="input-doc-libretto" class="btn-text"
+                            style="font-size:11px; cursor:pointer; color:var(--primary);">Aggiungi</label>
+                        <input type="file" id="input-doc-libretto" accept="image/*" style="display:none;">
+                    </div>
+
+                    <!-- Altro -->
+                    <div class="doc-card"
+                        style="background:#222; border:1px solid #333; border-radius:16px; padding:15px; text-align:center;">
+                        <div id="doc-preview-altro" class="doc-preview"
+                            style="height:80px; background:#333; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <i data-lucide="paperclip" style="width:24px; color:#666;"></i>
+                        </div>
+                        <h4 style="font-size:13px; margin-bottom:8px;">Altro</h4>
+                        <label for="input-doc-altro" class="btn-text"
+                            style="font-size:11px; cursor:pointer; color:var(--primary);">Aggiungi</label>
+                        <input type="file" id="input-doc-altro" accept="image/*" style="display:none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gearing Calculator Screen -->
+            <div id="screen-gearing" class="screen hidden">
+                <div class="header-card" style="margin-bottom: 20px;">
+                    <h2>Calcolo Rapporti</h2>
+                    <p>Calcola la velocità teorica in base alla trasmissione</p>
+                </div>
+
+                <div class="bike-card"
+                    style="padding: 20px; flex-direction: column; align-items: stretch; gap: 15px; margin-bottom: 15px; background: rgba(var(--primary-rgb), 0.05); border: 1px dashed var(--primary);">
+                    <h4 style="font-size: 13px; color: var(--primary); margin: 0; text-transform: uppercase;">Importa
+                        Dati Online</h4>
+                    <div class="stats-grid"
+                        style="grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: flex-end;">
+                        <div class="input-group" style="margin:0;">
+                            <label>Marca</label>
+                            <select id="import-gear-make" style="width:100%; border-radius:8px;">
+                                <option value="">Scegli...</option>
+                                <option value="Suzuki">Suzuki</option>
+                                <option value="Honda">Honda</option>
+                                <option value="Yamaha">Yamaha</option>
+                                <option value="Kawasaki">Kawasaki</option>
+                                <option value="Ducati">Ducati</option>
+                                <option value="BMW">BMW</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0;">
+                            <label>Modello</label>
+                            <select id="import-gear-model" style="width:100%; border-radius:8px;">
+                                <option value="">Scegli Marca...</option>
+                            </select>
+                        </div>
+                        <button id="btn-import-gear" class="btn btn-primary"
+                            style="padding: 10px; height: 44px; min-width: 44px;"><i
+                                data-lucide="download"></i></button>
+                    </div>
+                </div>
+
+                <div class="bike-card" style="padding: 20px; flex-direction: column; align-items: stretch; gap: 20px;">
+                    <div class="stats-grid">
+                        <div class="input-group">
+                            <label>Pignone (Z)</label>
+                            <input type="number" id="gear-sprocket" value="16" step="1">
+                        </div>
+                        <div class="input-group">
+                            <label>Corona (Z)</label>
+                            <input type="number" id="gear-chainring" value="44" step="1">
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="input-group">
+                            <label>Circonferenza Gomma (mm)</label>
+                            <input type="number" id="gear-tyre" value="2000" step="1">
+                        </div>
+                        <div class="input-group">
+                            <label>Rapporto Primario</label>
+                            <input type="number" id="gear-primary" value="1.6" step="0.001">
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                        <h4
+                            style="font-size: 13px; color: var(--primary); margin-bottom: 12px; text-transform: uppercase;">
+                            Rapporti Cambio (6 marce)</h4>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <div class="input-group"><label>1ª</label><input type="number" id="gear-r1" value="2.6"
+                                    step="0.001"></div>
+                            <div class="input-group"><label>2ª</label><input type="number" id="gear-r2" value="1.8"
+                                    step="0.001"></div>
+                            <div class="input-group"><label>3ª</label><input type="number" id="gear-r3" value="1.4"
+                                    step="0.001"></div>
+                            <div class="input-group"><label>4ª</label><input type="number" id="gear-r4" value="1.15"
+                                    step="0.001"></div>
+                            <div class="input-group"><label>5ª</label><input type="number" id="gear-r5" value="1.0"
+                                    step="0.001"></div>
+                            <div class="input-group"><label>6ª</label><input type="number" id="gear-r6" value="0.9"
+                                    step="0.001"></div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>RPM di Riferimento</label>
+                        <input type="number" id="gear-rpm" value="10000" step="100">
+                    </div>
+
+                    <button id="calc-gears-btn" class="btn btn-primary" style="width: 100% !important;">CALCOLA
+                        VELOCITÀ</button>
+                </div>
+
+                <div id="gearing-results" class="hidden" style="margin-top: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px; font-weight: 600;">Risultati (km/h a <span
+                            id="res-rpm">10000</span> RPM)</h3>
+                    <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;" id="gear-table">
+                        <!-- Dynamically filled -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="generic-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">Aggiungi record</h2>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="modal-cancel">Annulla</button>
+                <button class="btn btn-primary" id="modal-confirm" style="min-width: 120px;">Salva</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module" src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
