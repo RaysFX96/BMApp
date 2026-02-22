@@ -1,0 +1,10 @@
+name = "biker-manager-notifier"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "SOSTITUISCI_CON_IL_TUO_KV_ID"
+
+[triggers]
+crons = ["0 11 * * *"]

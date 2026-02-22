@@ -145,6 +145,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.error('Errore saveState:', e); }
     }
 
+    // --- Sync con Cloudflare Worker (solo PWA) ---
+    const WORKER_URL = 'https://biker-manager-notifier.YOUR_SUBDOMAIN.workers.dev/sync';
+
+    async function syncWithWorker() {
+        if (IS_NATIVE) return; // Solo PWA
+        const email = appState.user?.email;
+        if (!email) return; // Nessuna email configurata
+
+        const lastSync = parseInt(localStorage.getItem('bm_last_worker_sync') || '0');
+        const now = Date.now();
+        if (now - lastSync < 23 * 60 * 60 * 1000) return; // Già sincronizzato nelle ultime 23h
+
+        try {
+            await fetch(WORKER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, bikes: appState.bikes }),
+            });
+            localStorage.setItem('bm_last_worker_sync', String(now));
+            console.log('Sync Worker completato per:', email);
+        } catch (e) {
+            console.warn('Sync Worker fallito (offline?):', e);
+        }
+    }
+
     // --- UI Helpers ---
     const refreshIcons = () => {
         try { createIcons({ icons }); } catch (e) { console.error('Errore icone:', e); }
@@ -319,6 +344,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const logo = document.querySelector('.moto-logo');
         if (logo && appState.user.photo) {
             logo.innerHTML = `<img src="${appState.user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:18px;">`;
+        }
+        // Mostra campo email solo su PWA (non nativa)
+        const emailContainer = document.getElementById('email-field-container');
+        if (emailContainer && !IS_NATIVE) {
+            emailContainer.style.display = 'block';
         }
     }
 
@@ -681,9 +711,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         SettingsManager.renderSettings(document.getElementById('screen-settings'), appState, {
             onSave: async () => {
                 appState.user.name = document.getElementById('st-user-name').value;
+                const emailInp = document.getElementById('st-user-email');
+                if (emailInp && !IS_NATIVE) appState.user.email = emailInp.value.trim();
                 appState.notificationSettings.enabled = document.getElementById('st-notif-enabled').checked;
                 appState.notificationSettings.advanceDays = parseInt(document.getElementById('st-notif-days').value) || 7;
                 await saveState();
+                // Reset sync timer se email è cambiata, per forzare un nuovo sync
+                if (!IS_NATIVE) localStorage.removeItem('bm_last_worker_sync');
+                await syncWithWorker();
                 updateSidebarInfo();
                 alert('Profilo aggiornato con successo!');
             },
@@ -1337,6 +1372,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Se non stiamo aggiungendo una nuova moto, aggiorna anche il nome utente
             if (!isAddingNewBike) {
                 appState.user.name = document.getElementById('user-name').value || 'Pilota';
+                const emailInp = document.getElementById('user-email');
+                if (emailInp && !IS_NATIVE) appState.user.email = emailInp.value.trim();
             }
             const nBike = {
                 id: Date.now().toString(),
@@ -1356,6 +1393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             console.log('Salvataggio stato con', appState.bikes.length, 'moto.');
             await saveState();
+            if (!IS_NATIVE) await syncWithWorker();
 
             elements.onboardingOverlay?.classList.add('hidden');
             isAddingNewBike = false;
@@ -1423,6 +1461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             elements.onboardingOverlay?.classList.add('hidden');
             switchScreen('dashboard');
         }
+        if (!IS_NATIVE) await syncWithWorker();
         refreshIcons();
     }
 

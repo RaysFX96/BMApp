@@ -35,6 +35,12 @@ const SettingsManager = {
                         <label>Nome Visualizzato</label>
                         <input type="text" id="st-user-name" value="${appState.user.name || ''}" placeholder="Tuo nome">
                     </div>
+                    ${!Capacitor.isNativePlatform() ? `
+                    <div class="input-group" style="margin-top:15px;">
+                        <label>Email per Notifiche</label>
+                        <input type="email" id="st-user-email" value="${appState.user.email || ''}" placeholder="Tua email">
+                    </div>
+                    ` : ''}
                 </div>
 
                 <div class="settings-card" style="background:#222; border-radius:16px; padding:20px; border:1px solid #333; margin-top:15px;">

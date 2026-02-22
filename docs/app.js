@@ -33,7 +33,7 @@
   ));
 
   // node_modules/@capacitor/core/dist/index.js
-  var createCapacitorPlatforms, initPlatforms, CapacitorPlatforms, addPlatform, setPlatform, ExceptionCode, CapacitorException, getPlatformId, createCapacitor, initCapacitorGlobal, Capacitor, registerPlugin, Plugins, WebPlugin, encode, decode, CapacitorCookiesPluginWeb, CapacitorCookies, readBlobAsBase64, normalizeHttpHeaders, buildUrlParams, buildRequestInit, CapacitorHttpPluginWeb, CapacitorHttp;
+  var createCapacitorPlatforms, initPlatforms, CapacitorPlatforms, addPlatform, setPlatform, ExceptionCode, CapacitorException, getPlatformId, createCapacitor, initCapacitorGlobal, Capacitor2, registerPlugin, Plugins, WebPlugin, encode, decode, CapacitorCookiesPluginWeb, CapacitorCookies, readBlobAsBase64, normalizeHttpHeaders, buildUrlParams, buildRequestInit, CapacitorHttpPluginWeb, CapacitorHttp;
   var init_dist = __esm({
     "node_modules/@capacitor/core/dist/index.js"() {
       createCapacitorPlatforms = (win) => {
@@ -240,9 +240,9 @@
         return cap;
       };
       initCapacitorGlobal = (win) => win.Capacitor = createCapacitor(win);
-      Capacitor = /* @__PURE__ */ initCapacitorGlobal(typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {});
-      registerPlugin = Capacitor.registerPlugin;
-      Plugins = Capacitor.Plugins;
+      Capacitor2 = /* @__PURE__ */ initCapacitorGlobal(typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {});
+      registerPlugin = Capacitor2.registerPlugin;
+      Plugins = Capacitor2.Plugins;
       WebPlugin = class {
         constructor(config) {
           this.listeners = {};
@@ -308,10 +308,10 @@
           };
         }
         unimplemented(msg = "not implemented") {
-          return new Capacitor.Exception(msg, ExceptionCode.Unimplemented);
+          return new Capacitor2.Exception(msg, ExceptionCode.Unimplemented);
         }
         unavailable(msg = "not available") {
-          return new Capacitor.Exception(msg, ExceptionCode.Unavailable);
+          return new Capacitor2.Exception(msg, ExceptionCode.Unavailable);
         }
         async removeListener(eventName, listenerFunc) {
           const listeners = this.listeners[eventName];
@@ -36497,7 +36497,7 @@
           path: fileName,
           directory: Directory.Data
         });
-        return Capacitor.convertFileSrc(uri.uri);
+        return Capacitor2.convertFileSrc(uri.uri);
       } catch (e) {
         console.error("Error getting image URI", e);
         return "";
@@ -37215,6 +37215,12 @@
                         <label>Nome Visualizzato</label>
                         <input type="text" id="st-user-name" value="${appState.user.name || ""}" placeholder="Tuo nome">
                     </div>
+                    ${!Capacitor.isNativePlatform() ? `
+                    <div class="input-group" style="margin-top:15px;">
+                        <label>Email per Notifiche</label>
+                        <input type="email" id="st-user-email" value="${appState.user.email || ""}" placeholder="Tua email">
+                    </div>
+                    ` : ""}
                 </div>
 
                 <div class="settings-card" style="background:#222; border-radius:16px; padding:20px; border:1px solid #333; margin-top:15px;">
@@ -51907,7 +51913,7 @@
       routes: [],
       documents: { patente: null, assicurazione: null, libretto: null, altro: null }
     };
-    const IS_NATIVE = Capacitor.isNativePlatform();
+    const IS_NATIVE = Capacitor2.isNativePlatform();
     async function loadState() {
       try {
         const sources = [];
@@ -51987,6 +51993,26 @@
         console.log(`Salvataggio eseguito (${IS_NATIVE ? "nativo + " : ""}LocalStorage).`);
       } catch (e) {
         console.error("Errore saveState:", e);
+      }
+    }
+    const WORKER_URL = "https://biker-manager-notifier.YOUR_SUBDOMAIN.workers.dev/sync";
+    async function syncWithWorker() {
+      if (IS_NATIVE) return;
+      const email = appState.user?.email;
+      if (!email) return;
+      const lastSync = parseInt(localStorage.getItem("bm_last_worker_sync") || "0");
+      const now = Date.now();
+      if (now - lastSync < 23 * 60 * 60 * 1e3) return;
+      try {
+        await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, bikes: appState.bikes })
+        });
+        localStorage.setItem("bm_last_worker_sync", String(now));
+        console.log("Sync Worker completato per:", email);
+      } catch (e) {
+        console.warn("Sync Worker fallito (offline?):", e);
       }
     }
     const refreshIcons = () => {
@@ -52124,6 +52150,10 @@
       const logo = document.querySelector(".moto-logo");
       if (logo && appState.user.photo) {
         logo.innerHTML = `<img src="${appState.user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:18px;">`;
+      }
+      const emailContainer = document.getElementById("email-field-container");
+      if (emailContainer && !IS_NATIVE) {
+        emailContainer.style.display = "block";
       }
     }
     async function renderGarage() {
@@ -52439,9 +52469,13 @@
       SettingsManager_default.renderSettings(document.getElementById("screen-settings"), appState, {
         onSave: async () => {
           appState.user.name = document.getElementById("st-user-name").value;
+          const emailInp = document.getElementById("st-user-email");
+          if (emailInp && !IS_NATIVE) appState.user.email = emailInp.value.trim();
           appState.notificationSettings.enabled = document.getElementById("st-notif-enabled").checked;
           appState.notificationSettings.advanceDays = parseInt(document.getElementById("st-notif-days").value) || 7;
           await saveState();
+          if (!IS_NATIVE) localStorage.removeItem("bm_last_worker_sync");
+          await syncWithWorker();
           updateSidebarInfo();
           alert("Profilo aggiornato con successo!");
         },
@@ -53023,6 +53057,8 @@
         console.log("Finalizzazione aggiunta moto. Moto attuali:", appState.bikes.length);
         if (!isAddingNewBike) {
           appState.user.name = document.getElementById("user-name").value || "Pilota";
+          const emailInp = document.getElementById("user-email");
+          if (emailInp && !IS_NATIVE) appState.user.email = emailInp.value.trim();
         }
         const nBike = {
           id: Date.now().toString(),
@@ -53041,6 +53077,7 @@
         appState.selectedBikeId = nBike.id;
         console.log("Salvataggio stato con", appState.bikes.length, "moto.");
         await saveState();
+        if (!IS_NATIVE) await syncWithWorker();
         elements2.onboardingOverlay?.classList.add("hidden");
         isAddingNewBike = false;
         boot(true);
@@ -53104,6 +53141,7 @@
         elements2.onboardingOverlay?.classList.add("hidden");
         switchScreen("dashboard");
       }
+      if (!IS_NATIVE) await syncWithWorker();
       refreshIcons();
     }
     await boot();
