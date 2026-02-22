@@ -45,59 +45,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         documents: { patente: null, assicurazione: null, libretto: null, altro: null }
     };
 
-    const IS_NATIVE = Capacitor.isNativePlatform();
-
     async function loadState() {
         try {
             const sources = [];
 
-            // 1. Filesystem (Data) - solo su piattaforma nativa
-            if (IS_NATIVE) {
-                const fsData = await Filesystem.readFile({
-                    path: 'appState.json',
-                    directory: Directory.Data,
-                    encoding: Encoding.UTF8
-                }).catch(() => null);
-                if (fsData && fsData.data) sources.push({ label: 'FS_DATA', data: JSON.parse(fsData.data) });
-            }
+            // 1. Filesystem (Data)
+            const fsData = await Filesystem.readFile({
+                path: 'appState.json',
+                directory: Directory.Data,
+                encoding: Encoding.UTF8
+            }).catch(() => null);
+            if (fsData && fsData.data) sources.push({ label: 'FS_DATA', data: JSON.parse(fsData.data) });
 
-            // 2. LocalStorage (sempre disponibile)
+            // 2. LocalStorage
             const lsDataStr = localStorage.getItem('moto_app_v2');
             if (lsDataStr) sources.push({ label: 'LOCAL_STORAGE', data: JSON.parse(lsDataStr) });
 
-            // 3. Native (SharedPreferences) - solo Android
+            // 3. Native (SharedPreferences)
             if (window.AndroidFunction && window.AndroidFunction.getDataFromNative) {
                 const nativeDataStr = window.AndroidFunction.getDataFromNative();
                 if (nativeDataStr) sources.push({ label: 'NATIVE', data: JSON.parse(nativeDataStr) });
             }
 
-            // 4. Filesystem (Documents - Public) - solo su piattaforma nativa
-            if (IS_NATIVE) {
-                const pubData = await Filesystem.readFile({
-                    path: 'BikerManager_Backup.json',
-                    directory: Directory.Documents,
-                    encoding: Encoding.UTF8
-                }).catch(() => null);
-                if (pubData && pubData.data) sources.push({ label: 'FS_PUBLIC', data: JSON.parse(pubData.data) });
-            }
+            // 4. Filesystem (Documents - Public)
+            const pubData = await Filesystem.readFile({
+                path: 'BikerManager_Backup.json',
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8
+            }).catch(() => null);
+            if (pubData && pubData.data) sources.push({ label: 'FS_PUBLIC', data: JSON.parse(pubData.data) });
 
             // Logic: "Best Data Wins" -> Use the one with the most bikes
             if (sources.length > 0) {
+                // Sort by bike count descending, then by timestamp if available
                 sources.sort((a, b) => {
                     const countA = (a.data.bikes || []).length;
                     const countB = (b.data.bikes || []).length;
                     return countB - countA;
                 });
+
                 const bestSource = sources[0];
                 console.log(`Corazzata: Scelta sorgente [${bestSource.label}] con ${bestSource.data.bikes?.length || 0} moto.`);
                 Object.assign(appState, bestSource.data);
             }
 
-            // Notifiche - solo su piattaforma nativa
-            if (IS_NATIVE) {
-                await NotificationManager.requestPermission().catch(() => { });
-                await NotificationManager.syncNotifications(appState).catch(() => { });
-            }
+            // Request notification permissions
+            await NotificationManager.requestPermission();
+            await NotificationManager.syncNotifications(appState);
 
             // Migrations & Fallbacks
             if (!appState.bikes) appState.bikes = [];
@@ -118,34 +112,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const stateJson = JSON.stringify(appState);
 
-            if (IS_NATIVE) {
-                // 1. Filesystem (App Data) - solo nativo
-                await Filesystem.writeFile({
-                    path: 'appState.json',
-                    data: stateJson,
-                    directory: Directory.Data,
-                    encoding: Encoding.UTF8
-                }).catch(e => console.warn('FS write failed:', e));
+            // 1. Filesystem (App Data)
+            await Filesystem.writeFile({
+                path: 'appState.json',
+                data: stateJson,
+                directory: Directory.Data,
+                encoding: Encoding.UTF8
+            });
 
-                // 4. Filesystem (Public Documents)
-                await Filesystem.writeFile({
-                    path: 'BikerManager_Backup.json',
-                    data: stateJson,
-                    directory: Directory.Documents,
-                    encoding: Encoding.UTF8
-                }).catch(e => console.warn('Backup pubblico non riuscito:', e));
-
-                // 3. Native Bridge
-                if (window.AndroidFunction) window.AndroidFunction.syncDataToNative(stateJson);
-
-                // Sync Push Notifications
-                await NotificationManager.syncNotifications(appState).catch(() => { });
-            }
-
-            // 2. LocalStorage (sempre - funziona anche sul web)
+            // 2. LocalStorage
             localStorage.setItem('moto_app_v2', stateJson);
 
-            console.log(`Salvataggio eseguito (${IS_NATIVE ? 'nativo + ' : ''}LocalStorage).`);
+            // 3. Native Bridge
+            if (window.AndroidFunction) window.AndroidFunction.syncDataToNative(stateJson);
+
+            // 4. Filesystem (Public Documents) - Safety net for uninstalls
+            await Filesystem.writeFile({
+                path: 'BikerManager_Backup.json',
+                data: stateJson,
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8
+            }).catch(e => console.warn('Backup pubblico non riuscito (permessi?):', e));
+
+            console.log('Salvataggio corazzato eseguito (App Data, LS, Native, Documents).');
+
+            // Sync Push Notifications
+            await NotificationManager.syncNotifications(appState);
         } catch (e) { console.error('Errore saveState:', e); }
     }
 
@@ -210,8 +202,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (screenHistory.length > 0) {
             switchScreen(screenHistory.pop(), false);
         } else {
-            // Se siamo nella Dashboard e premiamo back, minimizziamo l'app (solo nativo)
-            if (IS_NATIVE) App.exitApp();
+            // Se siamo nella Dashboard e premiamo back, minimizziamo l'app
+            App.exitApp();
         }
     };
 
@@ -263,11 +255,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (elements.backBtn) elements.backBtn.onclick = handleBack;
 
-    // --- Listener Tasto Back Fisico (Android/Samsung) - solo nativo ---
-    if (IS_NATIVE) {
-        App.addListener('backButton', handleBack);
-    }
+    // --- Listener Tasto Back Fisico (Android/Samsung) ---
+    // 1. Standard Capacitor App Plugin
+    App.addListener('backButton', handleBack);
+
+    // 2. Evento Custom inviato da MainActivity.java (onBackPressed)
     window.addEventListener('customBackButton', handleBack);
+
+    // 3. Fallback standard Cordova/Android WebView
     document.addEventListener('backbutton', handleBack);
 
     // --- Sidebar ---
