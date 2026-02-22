@@ -56,61 +56,89 @@ export default {
             }
         }
 
+        // GET /test → trigger manuale per debug
+        if (request.method === 'GET' && url.pathname === '/test') {
+            const logs = [];
+            const log = (msg) => { console.log(msg); logs.push(msg); };
+
+            log('Starting manual test...');
+            await checkAndSendNotifications(env, log);
+
+            return new Response(JSON.stringify({ ok: true, diagnostics: logs }), {
+                headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+            });
+        }
+
         return new Response('Not Found', { status: 404 });
     },
 
     // ─── Cron Handler ────────────────────────────────────────────────────────────
     async scheduled(event, env, ctx) {
-        ctx.waitUntil(checkAndSendNotifications(env));
+        ctx.waitUntil(checkAndSendNotifications(env, console.log));
     },
 };
 
 // ─── Logica scadenze ─────────────────────────────────────────────────────────
-async function checkAndSendNotifications(env) {
+async function checkAndSendNotifications(env, logger = console.log) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    logger(`Diagnostic: Today is ${today.toISOString()}`);
 
     // Elenca tutte le chiavi in KV
     const list = await env.USERS_KV.list({ prefix: 'user:' });
+    logger(`Diagnostic: Found ${list.keys.length} users in KV`);
 
     for (const key of list.keys) {
+        logger(`Diagnostic: Checking user ${key.name}`);
         const raw = await env.USERS_KV.get(key.name);
-        if (!raw) continue;
+        if (!raw) {
+            logger(`Diagnostic: No data for ${key.name}`);
+            continue;
+        }
 
         const userData = JSON.parse(raw);
         const { email, bikes } = userData;
+        logger(`Diagnostic: User ${email} has ${(bikes || []).length} bikes`);
 
         const expiredItems = [];
-        const soonItems = [];   // scadenze nei prossimi 7 giorni
 
         for (const bike of (bikes || [])) {
             const bikeLabel = bike.model || bike.name || 'Moto';
             const maintenance = bike.maintenance || {};
 
             for (const [field, value] of Object.entries(maintenance)) {
-                if (!value) continue;
+                if (!value || !value.lastDate) continue;
 
-                // Scadenza per data
-                if (value.date) {
-                    const dueDate = new Date(value.date);
-                    dueDate.setHours(0, 0, 0, 0);
-                    const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+                // Calcolo scadenza: lastDate + intervalMonths
+                const lastDate = new Date(value.lastDate);
+                if (isNaN(lastDate.getTime())) continue;
 
-                    const label = FIELD_LABELS[field] || field;
+                const intervalMonths = parseInt(value.intervalMonths) || 0;
+                const dueDate = new Date(lastDate);
+                dueDate.setMonth(dueDate.getMonth() + intervalMonths);
+                dueDate.setHours(0, 0, 0, 0);
 
-                    if (diffDays < 0) {
-                        expiredItems.push(`❌ <b>${bikeLabel}</b> — ${label}: scaduta ${Math.abs(diffDays)} giorni fa`);
-                    } else if (diffDays <= 7) {
-                        expiredItems.push(`⚠️ <b>${bikeLabel}</b> — ${label}: scade tra ${diffDays} giorni (${formatDate(dueDate)})`);
-                    }
+                const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+                const label = FIELD_LABELS[field] || field;
+
+                logger(`  - ${bikeLabel} [${label}]: Last ${value.lastDate}, Interval ${intervalMonths}m -> Due ${dueDate.toISOString()} (diff: ${diffDays} days)`);
+
+                if (diffDays < 0) {
+                    expiredItems.push(`❌ <b>${bikeLabel}</b> — ${label}: scaduta ${Math.abs(diffDays)} giorni fa`);
+                } else if (diffDays <= 7) {
+                    expiredItems.push(`⚠️ <b>${bikeLabel}</b> — ${label}: scade tra ${diffDays} giorni (${formatDate(dueDate)})`);
                 }
             }
         }
 
-        const allItems = [...expiredItems, ...soonItems];
-        if (allItems.length === 0) continue;
+        if (expiredItems.length === 0) {
+            logger(`Diagnostic: No notifications needed for ${email}`);
+            continue;
+        }
 
-        await sendEmail(env, email, allItems);
+        logger(`Diagnostic: Sending email to ${email} with ${expiredItems.length} items`);
+        await sendEmail(env, email, expiredItems);
+        logger(`Diagnostic: Email sent request completed for ${email}`);
     }
 }
 
