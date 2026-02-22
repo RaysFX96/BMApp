@@ -11,9 +11,10 @@ workflows:
       - name: Install dependencies
         script: |
           npm install
+          chmod +x node_modules/.bin/cap
       - name: Capacitor build and sync
         script: |
-          npm run build || node build.js
+          node build.js
           npx cap sync ios
       - name: Set up code signing
         script: |
