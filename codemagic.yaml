@@ -23,7 +23,9 @@ workflows:
           echo "Setup code signing in Codemagic UI"
       - name: Build iOS
         script: |
-          # Compila il file .ipa
+          # NOTA: Per generare il file .ipa è OBBLIGATORIO configurare il Code Signing 
+          # nella sezione Distribution > iOS code signing della UI di Codemagic.
+          # Se non configurato, questo passo fallirà.
           xcode-project build-ipa \
             --workspace "ios/App/App.xcworkspace" \
             --scheme "App"
