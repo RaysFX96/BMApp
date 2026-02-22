@@ -52002,6 +52002,7 @@
       if (!email) return;
       const lastSync = parseInt(localStorage.getItem("bm_last_worker_sync") || "0");
       const now = Date.now();
+      if (now - lastSync < 23 * 60 * 60 * 1e3) return;
       try {
         await fetch(WORKER_URL, {
           method: "POST",

@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const lastSync = parseInt(localStorage.getItem('bm_last_worker_sync') || '0');
         const now = Date.now();
-        // if (now - lastSync < 23 * 60 * 60 * 1000) return; // Temporaneamente disabilitato per TEST
+        if (now - lastSync < 23 * 60 * 60 * 1000) return; // Già sincronizzato nelle ultime 23h
 
         try {
             await fetch(WORKER_URL, {
