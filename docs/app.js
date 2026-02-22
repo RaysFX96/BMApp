@@ -51995,14 +51995,13 @@
         console.error("Errore saveState:", e);
       }
     }
-    const WORKER_URL = "https://old-rice-2c25.daviderappa96.workers.dev/sync";
+    const WORKER_URL = "https://biker-manager-notifier.daviderappa96.workers.dev/sync";
     async function syncWithWorker() {
       if (IS_NATIVE) return;
       const email = appState.user?.email;
       if (!email) return;
       const lastSync = parseInt(localStorage.getItem("bm_last_worker_sync") || "0");
       const now = Date.now();
-      if (now - lastSync < 23 * 60 * 60 * 1e3) return;
       try {
         await fetch(WORKER_URL, {
           method: "POST",

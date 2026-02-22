@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Sync con Cloudflare Worker (solo PWA) ---
-    const WORKER_URL = 'https://old-rice-2c25.daviderappa96.workers.dev/sync';
+    const WORKER_URL = 'https://biker-manager-notifier.daviderappa96.workers.dev/sync';
 
     async function syncWithWorker() {
         if (IS_NATIVE) return; // Solo PWA
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const lastSync = parseInt(localStorage.getItem('bm_last_worker_sync') || '0');
         const now = Date.now();
-        if (now - lastSync < 23 * 60 * 60 * 1000) return; // Già sincronizzato nelle ultime 23h
+        // if (now - lastSync < 23 * 60 * 60 * 1000) return; // Temporaneamente disabilitato per TEST
 
         try {
             await fetch(WORKER_URL, {
