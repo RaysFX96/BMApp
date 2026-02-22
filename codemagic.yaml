@@ -21,14 +21,25 @@ workflows:
           # Questo passo verrà configurato tramite l'interfaccia di Codemagic
           # per caricare i certificati e i profili di provisioning.
           echo "Setup code signing in Codemagic UI"
-      - name: Build iOS
+      - name: Build iOS (Unsigned)
         script: |
-          # NOTA: Per generare il file .ipa è OBBLIGATORIO configurare il Code Signing 
-          # nella sezione Distribution > iOS code signing della UI di Codemagic.
-          # Se non configurato, questo passo fallirà.
-          xcode-project build-ipa \
-            --workspace "ios/App/App.xcworkspace" \
-            --scheme "App"
+          # Compila l'app senza richiedere firme ufficiali
+          xcodebuild build \
+            -workspace "ios/App/App.xcworkspace" \
+            -scheme "App" \
+            -configuration Debug \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE="" \
+            OBJROOT=$PWD/build/ios/obj \
+            SYMROOT=$PWD/build/ios/sym
+
+          # Pacchettizza l'IPA manualmente (è solo uno zip rinominato con una cartella Payload)
+          mkdir -p build/ios/ipa/Payload
+          cp -r build/ios/sym/Debug-iphoneos/App.app build/ios/ipa/Payload/
+          cd build/ios/ipa && zip -r BikerManager_Unsigned.ipa Payload
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
