@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Sync con Cloudflare Worker (solo PWA) ---
-    const WORKER_URL = 'https://biker-manager-notifier.YOUR_SUBDOMAIN.workers.dev/sync';
+    const WORKER_URL = 'https://old-rice-2c25.daviderappa96.workers.dev/sync';
 
     async function syncWithWorker() {
         if (IS_NATIVE) return; // Solo PWA
